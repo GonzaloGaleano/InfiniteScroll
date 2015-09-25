@@ -10,6 +10,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/listView"
         android:stackFromBottom="true"
-        android:transcriptMode="alwaysScroll"
+        android:transcriptMode="disabled"
+        android:drawSelectorOnTop="false"
         />
 </android.support.v4.widget.SwipeRefreshLayout>

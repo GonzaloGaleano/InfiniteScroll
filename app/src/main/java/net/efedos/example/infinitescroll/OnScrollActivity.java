@@ -3,7 +3,6 @@ package net.efedos.example.infinitescroll;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.os.Handler;
-import android.os.Parcelable;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -12,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -19,11 +19,12 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
-public class ListViewLikeChatActivity extends AppCompatActivity {
+public class OnScrollActivity extends AppCompatActivity {
 
-    private static final String TAG = "ListViewLikeChat";
+    private static final String TAG = "OnScrollActivity";
     //private int page = 0;
     //private int rowsPerPage = 15;
     private static ArrayList<String> list;
@@ -44,23 +45,23 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
     private static ProgressBar pBar;
     //private static EndlessScrollListener endlessScrollListener;
     private TmpHolder tmpHolder;
-    private static SwipeRefreshLayout swipeLayout;
-
+    //private static SwipeRefreshLayout swipeLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.i(TAG, "onCreate()");
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_list_view_like_chat);
+        setContentView(R.layout.activity_on_scroll);
         list = new ArrayList<>();
         _this = this;
         //endlessScrollListener = new EndlessScrollListener(15);
         setUpProgressDialog();
         setUpListView();
 
-        initPullToRefresh();
+        //initPullToRefresh();
     }
 
-    private void initPullToRefresh() {
+    /*private void initPullToRefresh() {
         swipeLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_container);
         swipeLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -68,7 +69,7 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
                 loadData();
             }
         });
-    }
+    }*/
 
     private void setUpProgressDialog() {
         pDialog = new ProgressDialog(this);
@@ -82,16 +83,18 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
         listView = (ListView) findViewById(R.id.listView);
         LayoutInflater inflater = getLayoutInflater();
         footer = inflater.inflate(R.layout.inc_footer, null, false);
-        //pBar = (ProgressBar) footer.findViewById(R.id.progressBar);
-        //listView.addHeaderView(footer);
+        pBar = (ProgressBar) footer.findViewById(R.id.progressBar);
+        listView.addHeaderView(footer);
 
-        //pBar.setVisibility(View.GONE);
+        pBar.setVisibility(View.INVISIBLE);
+
         loadData();
     }
 
-    private static void loadData() {
+    private void loadData() {
         Log.i(TAG,"loadData()");
         if (currentPage == 0) pDialog.show();
+        //hasCallback = true;
         currentPage++;
         handler = new Handler();
         handler.postDelayed(new Runnable() {
@@ -101,43 +104,104 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
                 Collections.reverse(list);
                 for (i = i; i <= (visibleThreshold * currentPage); ++i) {
                     Log.i(TAG,"row: " + i);
+                    /*if ( adapter == null) {
+                        list.add("row: " + i);
+                    }else{
+                        adapter.add("row: "+i);
+                    }*/
                     list.add("row: " + i);
                 }
-                //pBar.setVisibility(View.GONE);
+                /*if (adapter!=null){
+                    adapter.sort(new CustomComparator() {
+                        public int compare(String chair1, String chair2) {
+                            return chair1.compareTo(chair2);
+                        }
+                    });
+                }*/
+                pBar.setVisibility(View.INVISIBLE);
                 loadListView();
             }
         }, 1000);
     }
 
-    private static void loadListView() {
+    public class CustomComparator implements Comparator<String> {
+        @Override
+        public int compare(String lhs, String rhs) {
+            return 0;
+        }
+    }
+
+    private void loadListView() {
         Log.i(TAG, "loadListView()");
 
-        final int firstPosition = listView.getFirstVisiblePosition();
-        if ( adapter == null ) {
+        final int firstPosition = listView.getLastVisiblePosition();
+        if ( adapter == null) {
             Collections.reverse(list);
             Log.i(TAG, "adapter == null");
             adapter = new ItemAdapter(_this,list);
             listView.setAdapter(adapter);
-        }else {
-            Log.i(TAG, "adapter.refill()");
-            Collections.reverse(list);
-            adapter.reset();
-
-            /*listView.post(new Runnable() {
+            listView.setOnScrollListener(new AbsListView.OnScrollListener() {
                 @Override
-                public void run() {
-                    Log.i(TAG,"firstPosition: "+firstPosition);
-                    //listView.smoothScrollToPosition(visibleThreshold + 1, listView.getTop());
-                    listView.setSelection(firstPosition+(visibleThreshold));
-                }
-            });*/
+                public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+                    tmpHolder = new TmpHolder(firstVisibleItem, visibleItemCount, totalItemCount, hasCallback);
+                    Log.i(TAG,"onScroll() tmpHolder: "+tmpHolder);
 
+                    if (firstVisibleItem == 0 && visibleItemCount > 0 && !adapter.endReached() && !hasCallback) { //check if we've reached the bottom
+                        Log.i(TAG, "onScroll() condition success");
+                        Handler mHandler = new Handler();
+                        mHandler.postDelayed(new Runnable() {
+                            public void run() {
+                                Log.i(TAG, "Run()");
+                                boolean noMoreToShow = adapter.showMore(); //show more views and find out if
+                                if (noMoreToShow) {
+                                    pBar.setVisibility(View.INVISIBLE);
+                                    hasCallback = false;
+                                } else {
+                                    pBar.setVisibility(View.VISIBLE);
+                                    //scrollToTop();
+                                    loadData();
+                                }
+                            }
+                        }, 300);
+                        hasCallback = true;
+                    }
+                }
+
+                @Override
+                public void onScrollStateChanged(AbsListView view, int scrollState) {
+                    Log.i(TAG, "onScrollStateChanged() tmpHolder: "+tmpHolder);
+
+                }
+            });
+        } else {
+            Log.i(TAG, "===================================");
+            Collections.reverse(list);
+            //listView.deferNotifyDataSetChanged();
+            Log.i(TAG, "hasCallback: " + hasCallback);
+            if( hasCallback ) {
+                adapter.reset();
+
+                listView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.i(TAG, "firstPosition: " + firstPosition);
+                        //listView.smoothScrollToPosition(visibleThreshold + 1, listView.getTop());
+                        listView.setSelection(visibleThreshold);
+                        hasCallback = false;
+                        //listView.deferNotifyDataSetChanged();
+                    }
+                });
+            }
         }
 
         hasCallback = false;
-        swipeLayout.setRefreshing(false);
+        //swipeLayout.setRefreshing(false);
 
         if ( pDialog.isShowing() ) pDialog.cancel();
+    }
+
+    class TmpHandler {
+
     }
 
     // region ScrollListener
@@ -171,7 +235,7 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
                         Log.i(TAG, "Run()");
                         boolean noMoreToShow = adapter.showMore(); //show more views and find out if
                         if (noMoreToShow) {
-                            pBar.setVisibility(View.GONE);
+                            pBar.setVisibility(View.INVISIBLE);
                             hasCallback = false;
                         } else {
                             pBar.setVisibility(View.VISIBLE);
@@ -193,13 +257,13 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
     // endregion
 
     class TmpHolder {
-        int hiddenItemsCount;
+        int firstVisibleItem;
         int visibleItemCount;
         int totalItemCount;
         boolean hasCallback;
 
-        public TmpHolder(int hiddenItemsCount, int visibleItemCount, int totalItemCount, boolean hasCallback) {
-            this.hiddenItemsCount = hiddenItemsCount;
+        public TmpHolder(int firstVisibleItem, int visibleItemCount, int totalItemCount, boolean hasCallback) {
+            this.firstVisibleItem = firstVisibleItem;
             this.visibleItemCount = visibleItemCount;
             this.totalItemCount = totalItemCount;
             this.hasCallback = hasCallback;
@@ -208,7 +272,7 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
         @Override
         public String toString() {
             return "TmpHolder{" +
-                    "hiddenItemsCount=" + hiddenItemsCount +
+                    "firstVisibleItem=" + firstVisibleItem +
                     ", visibleItemCount=" + visibleItemCount +
                     ", totalItemCount=" + totalItemCount +
                     ", hasCallback=" + hasCallback +
@@ -221,7 +285,7 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
         listView.setSelection(adapter.getCount() - 1);
     }
 
-    public static class ItemAdapter extends BaseAdapter {
+    public static class ItemAdapter extends ArrayAdapter<String> {
 
         private LayoutInflater inflater;
         private List<String> items;
@@ -230,7 +294,8 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
         private List<String> itemsReversed;
 
         public ItemAdapter(Context context, List<String> items) {
-            super();
+            super(context, 0, items);
+            //super();
             inflater = LayoutInflater.from(context);
             this.context = context;
             this.items = items;
@@ -244,8 +309,8 @@ public class ListViewLikeChatActivity extends AppCompatActivity {
         }
 
         @Override
-        public Object getItem(int position) {
-            return items.get(position);
+        public String getItem(int position) {
+            return super.getItem(super.getCount() - position - 1);
         }
 
         @Override
