@@ -45,6 +45,7 @@ public class OnScrollActivity extends AppCompatActivity {
     private static ProgressBar pBar;
     //private static EndlessScrollListener endlessScrollListener;
     private TmpHolder tmpHolder;
+    private boolean reseting;
     //private static SwipeRefreshLayout swipeLayout;
 
     @Override
@@ -144,9 +145,9 @@ public class OnScrollActivity extends AppCompatActivity {
                 @Override
                 public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
                     tmpHolder = new TmpHolder(firstVisibleItem, visibleItemCount, totalItemCount, hasCallback);
-                    Log.i(TAG,"onScroll() tmpHolder: "+tmpHolder);
+                    //Log.i(TAG,"onScroll() tmpHolder: "+tmpHolder);
 
-                    if (firstVisibleItem == 0 && visibleItemCount > 0 && !adapter.endReached() && !hasCallback) { //check if we've reached the bottom
+                    if (firstVisibleItem == 0 && visibleItemCount > 0 && !adapter.endReached() && !hasCallback && !reseting ) { //check if we've reached the bottom
                         Log.i(TAG, "onScroll() condition success");
                         Handler mHandler = new Handler();
                         mHandler.postDelayed(new Runnable() {
@@ -180,14 +181,19 @@ public class OnScrollActivity extends AppCompatActivity {
             Log.i(TAG, "hasCallback: " + hasCallback);
             if( hasCallback ) {
                 adapter.reset();
-
+                reseting = true;
                 listView.post(new Runnable() {
                     @Override
                     public void run() {
                         Log.i(TAG, "firstPosition: " + firstPosition);
                         //listView.smoothScrollToPosition(visibleThreshold + 1, listView.getTop());
                         listView.setSelection(visibleThreshold);
-                        hasCallback = false;
+                        listView.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                reseting = false;
+                            }
+                        });
                         //listView.deferNotifyDataSetChanged();
                     }
                 });
@@ -291,7 +297,7 @@ public class OnScrollActivity extends AppCompatActivity {
         private List<String> items;
         private Context context;
         private int count;
-        private List<String> itemsReversed;
+        //private List<String> itemsReversed;
 
         public ItemAdapter(Context context, List<String> items) {
             super(context, 0, items);
@@ -299,7 +305,7 @@ public class OnScrollActivity extends AppCompatActivity {
             inflater = LayoutInflater.from(context);
             this.context = context;
             this.items = items;
-            itemsReversed = this.items;
+            //itemsReversed = this.items;
             //Collections.reverse(itemsReversed);
         }
 
@@ -330,7 +336,7 @@ public class OnScrollActivity extends AppCompatActivity {
                 holder = (ItemViewHolder) convertView.getTag();
             }
 
-            holder.itemName.setText("Name: " + itemsReversed.get(position));
+            holder.itemName.setText("Name: " + items.get(position));
             if(position % 2 == 0) {
                 convertView.setBackgroundColor(context.getResources().getColor(R.color.evenRowColor));
             } else {
@@ -379,7 +385,7 @@ public class OnScrollActivity extends AppCompatActivity {
          */
         public void reset(){
             //count = startCount;
-            itemsReversed = this.items;
+            //itemsReversed = this.items;
             //Collections.reverse(itemsReversed);
             notifyDataSetChanged();
         }
